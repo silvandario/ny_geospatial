@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+.DS_Store
+
+# Ignoriere alle Dateien im Ordner data/raw
+data/raw/*
+
+# Alle CSV Dateien (optional)
+*.csv
