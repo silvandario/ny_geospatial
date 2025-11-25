@@ -1,0 +1,11 @@
+Poly 2 GeoJSON Error:
+Traceback (most recent call last):
+  File "C:\Feisal Abassy\Dokumente\Coding\Geographic Insights\ny_geospatial\step1_create_grid.py", line 63, in create_grid
+    cells = h3.polygon_to_cells(geo_json_clean, res=resolution)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\abass.LAPTOP-QJ2NVMB9\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\h3\api\basic_str\__init__.py", line 475, in polygon_to_cells
+    return h3shape_to_cells(h3shape, res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\abass.LAPTOP-QJ2NVMB9\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\h3\api\basic_str\__init__.py", line 524, in h3shape_to_cells
+    raise ValueError('Unrecognized type: ' + str(type(h3shape)))
+ValueError: Unrecognized type: <class 'dict'>

@@ -1,0 +1,11 @@
+pandas
+geopandas
+pandas
+geopandas
+osmnx
+h3>=4.0.0
+shapely
+folium
+streamlit
+rtree
+matplotlib
