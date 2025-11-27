@@ -149,7 +149,7 @@ if audio_component:
     if st.sidebar.button("🔍 Analyze Voice Input"):
         with st.spinner("Transcribing and analyzing..."):
             try:
-                # Transcribe audio using OpenAI Whisper
+                # Transcribe audio using OpenAI Audio Model
                 import openai
                 
                 # Save audio temporarily
@@ -161,7 +161,7 @@ if audio_component:
                 # Transcribe
                 with open(tmp_file_path, "rb") as audio_file:
                     transcript = openai.audio.transcriptions.create(
-                        model="whisper-1",
+                        model="gpt-4o-mini-transcribe",
                         file=audio_file
                     )
                 
