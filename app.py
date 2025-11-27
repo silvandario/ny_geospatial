@@ -199,7 +199,7 @@ if audio_component:
                 updated_count = 0
                 for key, value in updates.items():
                     if key in st.session_state:
-                        st.session_state[key] = value
+                        st.session_state[key] = value if value is not None else 0
                         updated_count += 1
                 
                 if updated_count > 0:
@@ -255,7 +255,7 @@ if st.sidebar.button("✨ Update Filters from Text"):
                 updated_count = 0
                 for key, value in updates.items():
                     if key in st.session_state:
-                        st.session_state[key] = value
+                        st.session_state[key] = value if value is not None else 0
                         updated_count += 1
                 
                 if updated_count > 0:
