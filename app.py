@@ -115,10 +115,25 @@ df_filtered['final_score'] = (
 max_possible_score = (w_nightlife + w_culture + w_restaurants + w_green + w_shopping + 
                       w_safety + w_quiet + w_clean + w_mobility)
 
-if max_possible_score > 0:
-    df_filtered['final_score_normalized'] = (df_filtered['final_score'] / max_possible_score) * 10
+# EDGE CASE: All weights are 0 (user only cares about price)
+if max_possible_score == 0:
+    # Rank by price: cheapest = 10, most expensive = 0
+    # Invert price so cheaper is better
+    min_price = df_filtered['price_avg'].min()
+    max_price_in_range = df_filtered['price_avg'].max()
+    
+    if max_price_in_range > min_price:
+        # Inverted normalization: cheaper = higher score
+        df_filtered['final_score_normalized'] = 10 * (1 - (df_filtered['price_avg'] - min_price) / (max_price_in_range - min_price))
+    else:
+        # All prices are the same
+        df_filtered['final_score_normalized'] = 5.0
+    
+    # Show info message
+    st.info("ℹ️ All criteria weights are 0. Showing results ranked by price (cheapest = best).")
 else:
-    df_filtered['final_score_normalized'] = 0
+    # Normal case: calculate weighted score
+    df_filtered['final_score_normalized'] = (df_filtered['final_score'] / max_possible_score) * 10
 
 # Get winner hexagon
 winner = df_filtered.nlargest(1, 'final_score_normalized').iloc[0]
