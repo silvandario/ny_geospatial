@@ -453,8 +453,8 @@ for criterion in ['w_nightlife', 'w_culture', 'w_restaurants', 'w_green', 'w_sho
     user_criteria[criterion] = st.session_state.get(criterion, 0)
 
 # Check for optional inputs
-text_input = st.session_state.get('ai_text_input', None)
-audio_input = st.session_state.get('audio_transcript', None)
+text_input_for_ai = text_input if text_input and text_input.strip() else None
+audio_input_for_ai = st.session_state.get('audio_transcript', None)
 
 # Generate & cache recommendations
 @st.cache_data(show_spinner=False)
