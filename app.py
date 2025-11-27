@@ -14,6 +14,42 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 import numpy as np
+from geopy.geocoders import Nominatim
+from functools import lru_cache
+
+# ========================================
+# HELPER FUNCTIONS
+# ========================================
+
+@lru_cache(maxsize=100)
+def get_neighborhood_name(lat, lon):
+    """
+    Get neighborhood name from coordinates using reverse geocoding.
+    Cached to avoid repeated API calls for the same location.
+    """
+    try:
+        geolocator = Nominatim(user_agent="nyc_vibe_finder")
+        location = geolocator.reverse(f"{lat}, {lon}", language='en', timeout=10)
+        
+        if location and location.raw.get('address'):
+            address = location.raw['address']
+            
+            # Try to get neighborhood, suburb, or borough
+            neighborhood = (
+                address.get('neighbourhood') or 
+                address.get('suburb') or 
+                address.get('city_district') or
+                address.get('borough') or
+                address.get('town') or
+                'NYC'
+            )
+            
+            return neighborhood
+    except Exception as e:
+        # Fallback to just "NYC" if geocoding fails
+        return "NYC"
+    
+    return "NYC"
 
 # ========================================
 # PAGE CONFIGURATION
@@ -40,6 +76,29 @@ def load_data():
 gdf = load_data()
 
 # ========================================
+# VALIDATE REQUIRED COLUMNS
+# ========================================
+
+# List of required columns
+required_columns = [
+    'h3_id', 'geometry', 'price_avg',
+    'score_nightlife', 'score_culture', 'score_restaurants',
+    'score_green', 'score_mobility', 'score_shopping',
+    'score_safety', 'score_clean', 'score_quiet'
+]
+
+# Check for missing columns
+missing_columns = [col for col in required_columns if col not in gdf.columns]
+
+if missing_columns:
+    st.error(f"❌ ERROR: Missing required columns in dataset: {', '.join(missing_columns)}")
+    st.info("Available columns: " + ", ".join(gdf.columns.tolist()))
+    st.stop()
+
+# Optional: Uncomment to debug column names
+# st.write("DEBUG - Available columns:", gdf.columns.tolist())
+
+# ========================================
 # HEADER
 # ========================================
 
@@ -59,7 +118,7 @@ max_price = st.sidebar.slider(
     "Maximum Price per Night ($)",
     min_value=0,
     max_value=int(gdf['price_avg'].max()),
-    value=200,
+    value=int(gdf['price_avg'].max()),
     step=10,
     help="Only hexagons with average Airbnb prices below this value will be displayed."
 )
@@ -70,11 +129,11 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("✨ Your Vibe (Lifestyle)")
 st.sidebar.markdown("*The higher the value, the more important this criterion is to you.*")
 
-w_nightlife = st.sidebar.slider("🍸 Nightlife", 0, 10, 5, help="Bars, Clubs, Music Venues")
-w_culture = st.sidebar.slider("🎭 Culture", 0, 10, 7, help="Museums, Theaters, Galleries, Attractions")
-w_restaurants = st.sidebar.slider("☕ Dining", 0, 10, 6, help="Restaurants, Cafés, Food Scene")
-w_green = st.sidebar.slider("🌳 Parks & Nature", 0, 10, 5, help="Green Spaces, Parks, Recreation")
-w_shopping = st.sidebar.slider("🛍️ Shopping", 0, 10, 4, help="Shopping Options")
+w_nightlife = st.sidebar.slider("🍸 Nightlife", 0, 10, 0, help="Bars, Clubs, Music Venues")
+w_culture = st.sidebar.slider("🎭 Culture", 0, 10, 0, help="Museums, Theaters, Galleries, Attractions")
+w_restaurants = st.sidebar.slider("☕ Dining", 0, 10, 0, help="Restaurants, Cafés, Food Scene")
+w_green = st.sidebar.slider("🌳 Parks & Nature", 0, 10, 0, help="Green Spaces, Parks, Recreation")
+w_shopping = st.sidebar.slider("🛍️ Shopping", 0, 10, 0, help="Shopping Options")
 
 st.sidebar.markdown("---")
 
@@ -82,10 +141,10 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 Reality Check (Quality)")
 st.sidebar.markdown("*10 = Best Quality (very safe, quiet, clean)*")
 
-w_safety = st.sidebar.slider("👮 Safety", 0, 10, 9, help="Low Crime Rate")
-w_quiet = st.sidebar.slider("🤫 Quiet", 0, 10, 6, help="Low Noise Pollution")
-w_clean = st.sidebar.slider("✨ Cleanliness", 0, 10, 7, help="Few Rat Sightings")
-w_mobility = st.sidebar.slider("🚇 Public Transit", 0, 10, 8, help="Subway, Bus, Transport Access")
+w_safety = st.sidebar.slider("👮 Safety", 0, 10, 0, help="Low Crime Rate")
+w_quiet = st.sidebar.slider("🤫 Quiet", 0, 10, 0, help="Low Noise Pollution")
+w_clean = st.sidebar.slider("✨ Cleanliness", 0, 10, 0, help="Few Rat Sightings")
+w_mobility = st.sidebar.slider("🚇 Public Transit", 0, 10, 0, help="Subway, Bus, Transport Access")
 
 # ========================================
 # CALCULATE FINAL SCORE
@@ -138,27 +197,42 @@ else:
 # Get winner hexagon
 winner = df_filtered.nlargest(1, 'final_score_normalized').iloc[0]
 
+# Get neighborhood name from winner hexagon centroid
+winner_centroid = winner['geometry'].centroid
+neighborhood_name = get_neighborhood_name(winner_centroid.y, winner_centroid.x)
+
 # ========================================
 # MAIN AREA - WINNER METRICS
 # ========================================
 
 st.subheader("🏆 Your Perfect Neighborhood")
 
-col1, col2, col3, col4 = st.columns(4)
+# Helper function for traffic light indicator
+def get_traffic_light(score):
+    """Return traffic light emoji based on score (0-1 scale)."""
+    if score >= 0.8:
+        return "🟢"  # Green: Good
+    elif score >= 0.3:
+        return "🟡"  # Yellow: Medium
+    else:
+        return "🔴"  # Red: Poor
+
+# ROW 1: Main summary (3 columns)
+col1, col2, col3 = st.columns(3)
 
 with col1:
     st.metric(
-        label="Top Hexagon",
-        value=f"{winner['h3_id'][:10]}...",
-        delta=None
+        label="Top Neighborhood",
+        value=neighborhood_name,
+        delta=None,
+        help=f"H3 ID: {winner['h3_id']}"
     )
 
 with col2:
     st.metric(
         label="Match Score",
         value=f"{winner['final_score_normalized']:.1f} / 10",
-        delta=None,
-        help="How well does this neighborhood match your preferences?"
+        delta=None
     )
 
 with col3:
@@ -168,14 +242,28 @@ with col3:
         delta=None
     )
 
-with col4:
-    safety_label = "High" if winner['score_safety'] > 0.7 else "Medium" if winner['score_safety'] > 0.4 else "Low"
-    st.metric(
-        label="Safety",
-        value=safety_label,
-        delta=None,
-        help=f"Safety Score: {winner['score_safety']:.2f}"
-    )
+st.markdown("---")
+
+# ROW 2: Detailed criteria with traffic lights
+st.markdown("**📊 Neighborhood Details**")
+
+# Create 3 columns for 9 criteria (3 per column)
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown(f"{get_traffic_light(winner['score_safety'])} **Safety**: {winner['score_safety']*10:.1f}/10")
+    st.markdown(f"{get_traffic_light(winner['score_quiet'])} **Quiet**: {winner['score_quiet']*10:.1f}/10")
+    st.markdown(f"{get_traffic_light(winner['score_clean'])} **Cleanliness**: {winner['score_clean']*10:.1f}/10")
+
+with col2:
+    st.markdown(f"{get_traffic_light(winner['score_mobility'])} **Public Transit**: {winner['score_mobility']*10:.1f}/10")
+    st.markdown(f"{get_traffic_light(winner['score_nightlife'])} **Nightlife**: {winner['score_nightlife']*10:.1f}/10")
+    st.markdown(f"{get_traffic_light(winner['score_culture'])} **Culture**: {winner['score_culture']*10:.1f}/10")
+
+with col3:
+    st.markdown(f"{get_traffic_light(winner['score_restaurants'])} **Dining**: {winner['score_restaurants']*10:.1f}/10")
+    st.markdown(f"{get_traffic_light(winner['score_green'])} **Parks & Nature**: {winner['score_green']*10:.1f}/10")
+    st.markdown(f"{get_traffic_light(winner['score_shopping'])} **Shopping**: {winner['score_shopping']*10:.1f}/10")
 
 st.markdown("---")
 

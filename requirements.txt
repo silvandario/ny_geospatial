@@ -1,13 +1,11 @@
 pandas
-geosmnx
-h3
-pandas
 geopandas
+osmnx
+h3
 shapely
 matplotlib
 folium
 streamlit
 streamlit-folium
-streamlit
 rtree
-matplotlib
+geopy
