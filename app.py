@@ -177,20 +177,35 @@ m = folium.Map(
     tiles='CartoDB positron'  # Clean, light basemap
 )
 
-# Create choropleth with color based on final_score_normalized
-# Color scale: Red (0) -> Yellow (5) -> Green (10)
+# Create choropleth with smooth color gradient based on final_score_normalized
+# Color scale: Red (0-3) -> Orange/Yellow (4-7) -> Green (8-10)
 def get_color(score):
-    """Get color based on score (0-10)."""
-    if score >= 8:
-        return '#2ecc71'  # Green
-    elif score >= 6:
-        return '#27ae60'  # Dark green
-    elif score >= 4:
-        return '#f39c12'  # Orange
-    elif score >= 2:
-        return '#e67e22'  # Dark orange
-    else:
-        return '#e74c3c'  # Red
+    """
+    Get smooth gradient color based on score (0-10).
+    Uses RGB interpolation for smooth transitions.
+    """
+    # Normalize score to 0-1 range
+    normalized = score / 10.0
+    
+    if score <= 3:  # Red zone (0-3)
+        # Deep red to orange-red
+        r = 231
+        g = int(76 + (normalized / 0.3) * 80)  # 76 -> 156
+        b = int(60 + (normalized / 0.3) * 20)  # 60 -> 80
+    elif score <= 7:  # Yellow/Orange zone (4-7)
+        # Orange to yellow
+        progress = (score - 3) / 4  # 0 to 1 within this range
+        r = int(243 - progress * 3)  # 243 -> 240
+        g = int(156 + progress * 100)  # 156 -> 256
+        b = int(18 + progress * 60)  # 18 -> 78
+    else:  # Green zone (8-10)
+        # Yellow-green to pure green
+        progress = (score - 7) / 3  # 0 to 1 within this range
+        r = int(241 - progress * 195)  # 241 -> 46
+        g = int(196 + progress * 48)  # 196 -> 244
+        b = int(15 + progress * 51)  # 15 -> 66
+    
+    return f'#{r:02x}{g:02x}{b:02x}'
 
 # Add hexagons to map
 for idx, row in df_filtered.iterrows():
@@ -263,9 +278,11 @@ st.sidebar.subheader("🎨 Map Legend")
 st.sidebar.markdown("""
 **Colors:**
 - 🟢 Green: High Score (8-10)
-- 🟡 Yellow/Orange: Medium Score (4-8)
-- 🔴 Red: Low Score (0-4)
-- � Purple: Top Match (Winner)
+- 🟡 Yellow/Orange: Medium Score (4-7)
+- 🔴 Red: Low Score (0-3)
+- 🟣 Purple: Top Match (Winner)
+
+**Note:** Colors blend smoothly for better differentiation.
 
 **Controls:**
 - Hover over hexagons for details
@@ -273,4 +290,3 @@ st.sidebar.markdown("""
 """)
 
 st.sidebar.markdown("---")
-st.sidebar.caption("Made with ❤️ using Streamlit & H3")
