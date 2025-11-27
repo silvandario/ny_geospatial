@@ -1,11 +1,38 @@
-pandas
-geopandas
-osmnx
-h3
-shapely
-matplotlib
-folium
-streamlit
-streamlit-folium
-rtree
-geopy
+# NYC Vibe & Value Finder - Complete Dependencies
+# ================================================
+
+# Core geospatial
+pandas>=2.0.0
+geopandas>=0.14.0
+shapely>=2.0.0
+osmnx>=1.6.0
+h3>=3.7.6
+
+# Visualization
+matplotlib>=3.7.0
+folium>=0.14.0
+
+# Streamlit
+streamlit>=1.28.0
+streamlit-folium>=0.15.0
+
+# Geocoding
+geopy>=2.4.0
+rtree>=1.1.0
+
+# AI & Voice
+openai>=1.3.0  # For GPT-4 and Whisper
+requests>=2.31.0  # For VAPI API calls
+
+# Audio processing (for voice features)
+pydub>=0.25.1  # Audio manipulation
+# streamlit-webrtc>=0.47.0  # Optional: Real-time audio (commented out - can be heavy)
+
+# Optional: Advanced audio features
+# SpeechRecognition>=3.10.0  # Alternative STT
+# pyaudio>=0.2.14  # Audio I/O (may require system deps)
+
+# Development
+# pytest>=7.4.0
+# black>=23.0.0
+# flake8>=6.0.0
