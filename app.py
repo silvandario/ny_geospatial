@@ -462,7 +462,7 @@ def cached_recommendations(neighborhood, criteria_str, text, audio):
     return generate_ai_recommendations(neighborhood, json.loads(criteria_str), text, audio)
 
 with st.spinner("🤖 Generating personalized recommendations..."):
-    recommendations = cached_recommendations(neighborhood_name, json.dumps(user_criteria), text_input, audio_input)
+    recommendations = cached_recommendations(neighborhood_name, json.dumps(user_criteria), text_input_for_ai, audio_input_for_ai)
 
 st.markdown(recommendations)
 st.markdown("---")
