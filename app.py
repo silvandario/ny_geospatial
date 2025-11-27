@@ -149,9 +149,6 @@ if audio_component:
     if st.sidebar.button("🔍 Analyze Voice Input"):
         with st.spinner("Transcribing and analyzing..."):
             try:
-                # Transcribe audio using OpenAI Audio Model
-                import openai
-                
                 # Save audio temporarily
                 import tempfile
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
