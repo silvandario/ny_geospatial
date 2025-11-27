@@ -101,6 +101,48 @@ if missing_columns:
     st.stop()
 
 # ========================================
+# SYSTEM PROMPT DEFINITION
+# ========================================
+
+AI_SYSTEM_PROMPT = """
+You are a configuration assistant for a NYC travel dashboard. 
+Your goal is to translate natural language user requests into a JSON configuration for sliders.
+
+Output Format: JSON only.
+Keys: 
+- max_price (integer, default 500 if not mentioned)
+- w_nightlife, w_culture, w_restaurants, w_green, w_shopping (Lifestyle Weights 0-10)
+- w_safety, w_quiet, w_clean, w_mobility (Quality Weights 0-10)
+
+LOGIC RULES FOR WEIGHTS (0-10):
+
+1. **Strong Desire ("Love", "Must have", "Very important", "Focus on"):**
+   -> Set weight to **10**.
+   (e.g., "I love partying" -> w_nightlife: 10)
+
+2. **Moderate Desire ("Like", "Prefer", "Good", "Should have"):**
+   -> Set weight to **6-7**.
+   (e.g., "I like museums" -> w_culture: 6)
+
+3. **Slight Desire ("Maybe", "A bit", "If possible"):**
+   -> Set weight to **3-4**.
+   (e.g., "Maybe some shopping" -> w_shopping: 3)
+
+4. **Explicit Dislike / Avoidance:**
+   -> Set weight to **0** for Lifestyle categories (e.g., "No party" -> w_nightlife: 0).
+   -> Set weight to **10** for Quality categories if the user wants to avoid the negative (e.g., "I hate noise" -> w_quiet: 10).
+
+5. **Not Mentioned / Irrelevant:**
+   -> Set weight to **0**. 
+   (Do not include criteria that are not mentioned, or set them to 0).
+
+6. **Budget:**
+   -> Extract the number if mentioned (e.g. "max 200 bucks" -> max_price: 200). 
+   -> If "cheap" or "budget" is mentioned without number -> max_price: 150.
+   -> If "luxury" or "expensive" -> max_price: 800.
+   -> Default: Do not change if not mentioned.
+"""
+# ========================================
 # HEADER
 # ========================================
 
@@ -169,17 +211,7 @@ if audio_component:
                 response = openai.chat.completions.create(
                     model="gpt-4o-mini", 
                     messages=[
-                        {"role": "system", "content": """
-                        Extract user preferences from their voice input and return JSON with filter values.
-                        Return only JSON with keys: max_price, w_nightlife, w_culture, w_restaurants, 
-                        w_green, w_shopping, w_safety, w_quiet, w_clean, w_mobility (all 0-10 scale).
-                        
-                        LOGIC RULES:
-                        1. If user likes something → weight 8-10
-                        2. If user explicitly dislikes something → weight 0
-                        3. If user dislikes something, set other neutral traits to 2 (baseline)
-                        4. If not specified, set the budget to 2628 (max price)
-                        """},
+                        {"role": "system", "content": AI_SYSTEM_PROMPT},
                         {"role": "user", "content": transcribed_text}
                     ]
                 )
@@ -224,19 +256,7 @@ if st.sidebar.button("✨ Update Filters from Text"):
                 response = openai.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": """
-                        Extract user preferences and return JSON with filter values (only relevant ones).
-                        Keys: max_price, w_nightlife, w_culture, w_restaurants, w_green, w_shopping, 
-                        w_safety, w_quiet, w_clean, w_mobility (weights 0-10).
-                        
-                        LOGIC RULES:
-                        1. If user likes something → weight 8-10
-                        2. If user explicitly dislikes something → weight 0
-                        3. If user dislikes something, set other neutral traits to 2 (baseline)
-                        4. If not specified, set weight to 1
-                        
-                        Return ONLY the JSON object.
-                        """},
+                        {"role": "system", "content": AI_SYSTEM_PROMPT},
                         {"role": "user", "content": text_input}
                     ]
                 )
