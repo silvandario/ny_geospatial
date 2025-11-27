@@ -44,48 +44,48 @@ gdf = load_data()
 # ========================================
 
 st.title("🗽 NYC Vibe & Value Finder")
-st.markdown("### Finde dein perfektes Viertel basierend auf deinem Lifestyle – nicht nur dem Preis.")
+st.markdown("### Find your perfect neighborhood based on your lifestyle – not just the price.")
 st.markdown("---")
 
 # ========================================
 # SIDEBAR - CONTROLS
 # ========================================
 
-st.sidebar.header("⚙️ Deine Präferenzen")
+st.sidebar.header("⚙️ Your Preferences")
 
 # GROUP A: HARD FACTS (Budget Filter)
 st.sidebar.subheader("💰 Budget")
 max_price = st.sidebar.slider(
-    "Maximaler Preis pro Nacht ($)",
+    "Maximum Price per Night ($)",
     min_value=0,
     max_value=int(gdf['price_avg'].max()),
     value=200,
     step=10,
-    help="Nur Hexagone mit durchschnittlichen Airbnb-Preisen unter diesem Wert werden angezeigt."
+    help="Only hexagons with average Airbnb prices below this value will be displayed."
 )
 
 st.sidebar.markdown("---")
 
 # GROUP B: LIFESTYLE (Positive Criteria)
-st.sidebar.subheader("✨ Dein Vibe (Lifestyle)")
-st.sidebar.markdown("*Je höher der Wert, desto wichtiger ist dir dieses Kriterium.*")
+st.sidebar.subheader("✨ Your Vibe (Lifestyle)")
+st.sidebar.markdown("*The higher the value, the more important this criterion is to you.*")
 
-w_nightlife = st.sidebar.slider("🍸 Nachtleben", 0, 10, 5, help="Bars, Clubs, Musik-Venues")
-w_culture = st.sidebar.slider("🎭 Kultur", 0, 10, 7, help="Museen, Theater, Galerien, Sehenswürdigkeiten")
-w_restaurants = st.sidebar.slider("☕ Gastronomie", 0, 10, 6, help="Restaurants, Cafés, Food-Szene")
-w_green = st.sidebar.slider("🌳 Parks & Natur", 0, 10, 5, help="Grünflächen, Parks, Erholung")
-w_shopping = st.sidebar.slider("🛍️ Shopping", 0, 10, 4, help="Einkaufsmöglichkeiten")
+w_nightlife = st.sidebar.slider("🍸 Nightlife", 0, 10, 5, help="Bars, Clubs, Music Venues")
+w_culture = st.sidebar.slider("🎭 Culture", 0, 10, 7, help="Museums, Theaters, Galleries, Attractions")
+w_restaurants = st.sidebar.slider("☕ Dining", 0, 10, 6, help="Restaurants, Cafés, Food Scene")
+w_green = st.sidebar.slider("🌳 Parks & Nature", 0, 10, 5, help="Green Spaces, Parks, Recreation")
+w_shopping = st.sidebar.slider("🛍️ Shopping", 0, 10, 4, help="Shopping Options")
 
 st.sidebar.markdown("---")
 
 # GROUP C: REALITY (Quality of Life)
-st.sidebar.subheader("🎯 Die Realität (Qualität)")
-st.sidebar.markdown("*10 = Beste Qualität (sehr sicher, ruhig, sauber)*")
+st.sidebar.subheader("🎯 Reality Check (Quality)")
+st.sidebar.markdown("*10 = Best Quality (very safe, quiet, clean)*")
 
-w_safety = st.sidebar.slider("👮 Sicherheit", 0, 10, 9, help="Niedrige Kriminalitätsrate")
-w_quiet = st.sidebar.slider("🤫 Ruhe", 0, 10, 6, help="Wenig Lärmbelästigung")
-w_clean = st.sidebar.slider("✨ Sauberkeit", 0, 10, 7, help="Wenig Ratten-Sichtungen")
-w_mobility = st.sidebar.slider("🚇 ÖPNV-Nähe", 0, 10, 8, help="U-Bahn, Bus, Transport")
+w_safety = st.sidebar.slider("👮 Safety", 0, 10, 9, help="Low Crime Rate")
+w_quiet = st.sidebar.slider("🤫 Quiet", 0, 10, 6, help="Low Noise Pollution")
+w_clean = st.sidebar.slider("✨ Cleanliness", 0, 10, 7, help="Few Rat Sightings")
+w_mobility = st.sidebar.slider("🚇 Public Transit", 0, 10, 8, help="Subway, Bus, Transport Access")
 
 # ========================================
 # CALCULATE FINAL SCORE
@@ -95,7 +95,7 @@ w_mobility = st.sidebar.slider("🚇 ÖPNV-Nähe", 0, 10, 8, help="U-Bahn, Bus, 
 df_filtered = gdf[gdf['price_avg'] <= max_price].copy()
 
 if len(df_filtered) == 0:
-    st.error("❌ Keine Hexagone in diesem Preisbereich gefunden. Erhöhe dein Budget!")
+    st.error("❌ No hexagons found in this price range. Increase your budget!")
     st.stop()
 
 # Calculate weighted final score
@@ -127,7 +127,7 @@ winner = df_filtered.nlargest(1, 'final_score_normalized').iloc[0]
 # MAIN AREA - WINNER METRICS
 # ========================================
 
-st.subheader("🏆 Dein perfektes Viertel")
+st.subheader("🏆 Your Perfect Neighborhood")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -143,20 +143,20 @@ with col2:
         label="Match Score",
         value=f"{winner['final_score_normalized']:.1f} / 10",
         delta=None,
-        help="Wie gut passt dieses Viertel zu deinen Präferenzen?"
+        help="How well does this neighborhood match your preferences?"
     )
 
 with col3:
     st.metric(
-        label="Preis pro Nacht",
+        label="Price per Night",
         value=f"${winner['price_avg']:.0f}",
         delta=None
     )
 
 with col4:
-    safety_label = "Hoch" if winner['score_safety'] > 0.7 else "Mittel" if winner['score_safety'] > 0.4 else "Niedrig"
+    safety_label = "High" if winner['score_safety'] > 0.7 else "Medium" if winner['score_safety'] > 0.4 else "Low"
     st.metric(
-        label="Sicherheit",
+        label="Safety",
         value=safety_label,
         delta=None,
         help=f"Safety Score: {winner['score_safety']:.2f}"
@@ -168,7 +168,7 @@ st.markdown("---")
 # MAIN AREA - INTERACTIVE MAP
 # ========================================
 
-st.subheader("🗺️ Interaktive Karte")
+st.subheader("🗺️ Interactive Map")
 
 # Create Folium map
 m = folium.Map(
@@ -198,10 +198,10 @@ for idx, row in df_filtered.iterrows():
     tooltip_html = f"""
     <div style="font-family: Arial; font-size: 12px;">
         <b>Score:</b> {row['final_score_normalized']:.1f}/10<br>
-        <b>Preis:</b> ${row['price_avg']:.0f}/Nacht<br>
-        <b>Sicherheit:</b> {row['score_safety']*10:.1f}/10<br>
-        <b>Nachtleben:</b> {row['score_nightlife']*10:.1f}/10<br>
-        <b>Kultur:</b> {row['score_culture']*10:.1f}/10<br>
+        <b>Price:</b> ${row['price_avg']:.0f}/night<br>
+        <b>Safety:</b> {row['score_safety']*10:.1f}/10<br>
+        <b>Nightlife:</b> {row['score_nightlife']*10:.1f}/10<br>
+        <b>Culture:</b> {row['score_culture']*10:.1f}/10<br>
         <b>Parks:</b> {row['score_green']*10:.1f}/10
     </div>
     """
@@ -225,7 +225,7 @@ for idx, row in df_filtered.iterrows():
 folium.GeoJson(
     winner['geometry'],
     style_function=lambda x: {
-        'fillColor': '#FFD700',  # Gold
+        'fillColor': '#9b59b6',  # Purple (Violett)
         'color': 'black',
         'weight': 3,
         'fillOpacity': 0.8
@@ -241,35 +241,35 @@ st_folium(m, width=1400, height=600)
 # ========================================
 
 st.markdown("---")
-st.subheader("📊 Statistiken")
+st.subheader("📊 Statistics")
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.metric("Hexagone angezeigt", len(df_filtered))
+    st.metric("Hexagons Displayed", len(df_filtered))
 
 with col2:
-    st.metric("Durchschnittspreis", f"${df_filtered['price_avg'].mean():.0f}")
+    st.metric("Average Price", f"${df_filtered['price_avg'].mean():.0f}")
 
 with col3:
-    st.metric("Durchschn. Match-Score", f"{df_filtered['final_score_normalized'].mean():.1f}/10")
+    st.metric("Avg. Match Score", f"{df_filtered['final_score_normalized'].mean():.1f}/10")
 
 # ========================================
 # SIDEBAR - LEGEND
 # ========================================
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎨 Karten-Legende")
+st.sidebar.subheader("🎨 Map Legend")
 st.sidebar.markdown("""
-**Farben:**
-- 🟢 Grün: Hoher Score (8-10)
-- 🟡 Gelb/Orange: Mittlerer Score (4-8)
-- 🔴 Rot: Niedriger Score (0-4)
-- 🟡 Gold: Top Match (Gewinner)
+**Colors:**
+- 🟢 Green: High Score (8-10)
+- 🟡 Yellow/Orange: Medium Score (4-8)
+- 🔴 Red: Low Score (0-4)
+- � Purple: Top Match (Winner)
 
-**Bedienung:**
-- Hovere über Hexagone für Details
-- Zoome und verschiebe die Karte
+**Controls:**
+- Hover over hexagons for details
+- Zoom and pan the map
 """)
 
 st.sidebar.markdown("---")
