@@ -16,6 +16,20 @@ from streamlit_folium import st_folium
 import numpy as np
 from geopy.geocoders import Nominatim
 from functools import lru_cache
+import openai
+import json
+# 1. Text Control (OpenAI)
+# ========================================
+# LOAD SECRETS
+# ========================================
+
+try:
+    OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+except Exception:
+    st.error("❌ Missing API Keys in .streamlit/secrets.toml")
+    st.stop()
+
+openai.api_key = OPENAI_API_KEY
 
 # ========================================
 # HELPER FUNCTIONS
@@ -95,9 +109,6 @@ if missing_columns:
     st.info("Available columns: " + ", ".join(gdf.columns.tolist()))
     st.stop()
 
-# Optional: Uncomment to debug column names
-# st.write("DEBUG - Available columns:", gdf.columns.tolist())
-
 # ========================================
 # HEADER
 # ========================================
@@ -107,19 +118,109 @@ st.markdown("### Find your perfect neighborhood based on your lifestyle – not 
 st.markdown("---")
 
 # ========================================
+# INITIALIZE SESSION STATE
+# ========================================
+
+defaults = {
+    "max_price": int(gdf['price_avg'].max()),
+    "w_nightlife": 0,
+    "w_culture": 0,
+    "w_restaurants": 0,
+    "w_green": 0,
+    "w_shopping": 0,
+    "w_safety": 0,
+    "w_quiet": 0,
+    "w_clean": 0,
+    "w_mobility": 0
+}
+
+for key, default_val in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = default_val
+
+# ========================================
 # SIDEBAR - CONTROLS
 # ========================================
 
 st.sidebar.header("⚙️ Your Preferences")
 
+# ========================================
+# AI CONTROL
+# ========================================
+st.sidebar.subheader("🤖 AI Assistant")
+st.sidebar.markdown("**Text Control**")
+text_input = st.sidebar.text_area("Describe your ideal neighborhood:", height=70)
+
+if st.sidebar.button("✨ Update Filters"):
+    if text_input:
+        try:
+            with st.spinner("AI is thinking..."):
+                response = openai.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": """
+                        You are an AI assistant controlling a Streamlit dashboard.
+                        Extract user preferences and return a JSON object with the following keys (only if relevant):
+                        - max_price (int)
+                        - w_nightlife (0-10)
+                        - w_culture (0-10)
+                        - w_restaurants (0-10)
+                        - w_green (0-10)
+                        - w_shopping (0-10)
+                        - w_safety (0-10)
+                        - w_quiet (0-10)
+                        - w_clean (0-10)
+                        - w_mobility (0-10)
+                        
+                        LOGIC RULES:
+                        1. If the user likes/wants something, set its weight to 8-10.
+                        2. If the user explicitly says they do NOT like or do NOT care about something (e.g. "I don't like it clean", "safety doesn't matter"), set that weight to 0.
+                        3. CRITICAL: If the user expresses a negative preference (e.g. "not clean"), you MUST set the weights of other "neutral" positive traits to 5 (baseline). 
+                           - Example: "I don't like it clean" -> Set w_clean=0, and set w_safety=5, w_quiet=5, w_mobility=5, etc. (unless specified otherwise).
+                           - This ensures that "not clean" actually means "cleanliness is less important than other factors".
+                           - If all weights are 0, the ranking falls back to price only, which ignores the user's specific dislike.
+                        
+                        Return ONLY the JSON object.
+                        """},
+                        {"role": "user", "content": text_input}
+                    ]
+                )
+                
+                content = response.choices[0].message.content
+                # Parse JSON (handle potential markdown code blocks)
+                if "```json" in content:
+                    content = content.split("```json")[1].split("```")[0]
+                elif "```" in content:
+                    content = content.split("```")[1].split("```")[0]
+                
+                updates = json.loads(content)
+                
+                # Update session state
+                updated_count = 0
+                for key, value in updates.items():
+                    if key in st.session_state:
+                        st.session_state[key] = value
+                        updated_count += 1
+                
+                if updated_count > 0:
+                    st.success(f"Updated {updated_count} preferences!")
+                    st.rerun()
+                else:
+                    st.warning("No relevant preferences found.")
+                    
+        except Exception as e:
+            st.error(f"AI Error: {str(e)}")
+
+st.sidebar.markdown("---")
+
 # GROUP A: HARD FACTS (Budget Filter)
 st.sidebar.subheader("💰 Budget")
-max_price = st.sidebar.slider(
+st.sidebar.slider(
     "Maximum Price per Night ($)",
     min_value=0,
     max_value=int(gdf['price_avg'].max()),
-    value=int(gdf['price_avg'].max()),
     step=10,
+    key="max_price",
     help="Only hexagons with average Airbnb prices below this value will be displayed."
 )
 
@@ -129,11 +230,11 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("✨ Your Vibe (Lifestyle)")
 st.sidebar.markdown("*The higher the value, the more important this criterion is to you.*")
 
-w_nightlife = st.sidebar.slider("🍸 Nightlife", 0, 10, 0, help="Bars, Clubs, Music Venues")
-w_culture = st.sidebar.slider("🎭 Culture", 0, 10, 0, help="Museums, Theaters, Galleries, Attractions")
-w_restaurants = st.sidebar.slider("☕ Dining", 0, 10, 0, help="Restaurants, Cafés, Food Scene")
-w_green = st.sidebar.slider("🌳 Parks & Nature", 0, 10, 0, help="Green Spaces, Parks, Recreation")
-w_shopping = st.sidebar.slider("🛍️ Shopping", 0, 10, 0, help="Shopping Options")
+st.sidebar.slider("🍸 Nightlife", 0, 10, key="w_nightlife", help="Bars, Clubs, Music Venues")
+st.sidebar.slider("🎭 Culture", 0, 10, key="w_culture", help="Museums, Theaters, Galleries, Attractions")
+st.sidebar.slider("☕ Dining", 0, 10, key="w_restaurants", help="Restaurants, Cafés, Food Scene")
+st.sidebar.slider("🌳 Parks & Nature", 0, 10, key="w_green", help="Green Spaces, Parks, Recreation")
+st.sidebar.slider("🛍️ Shopping", 0, 10, key="w_shopping", help="Shopping Options")
 
 st.sidebar.markdown("---")
 
@@ -141,17 +242,17 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 Reality Check (Quality)")
 st.sidebar.markdown("*10 = Best Quality (very safe, quiet, clean)*")
 
-w_safety = st.sidebar.slider("👮 Safety", 0, 10, 0, help="Low Crime Rate")
-w_quiet = st.sidebar.slider("🤫 Quiet", 0, 10, 0, help="Low Noise Pollution")
-w_clean = st.sidebar.slider("✨ Cleanliness", 0, 10, 0, help="Few Rat Sightings")
-w_mobility = st.sidebar.slider("🚇 Public Transit", 0, 10, 0, help="Subway, Bus, Transport Access")
+st.sidebar.slider("👮 Safety", 0, 10, key="w_safety", help="Low Crime Rate")
+st.sidebar.slider("🤫 Quiet", 0, 10, key="w_quiet", help="Low Noise Pollution")
+st.sidebar.slider("✨ Cleanliness", 0, 10, key="w_clean", help="Few Rat Sightings")
+st.sidebar.slider("🚇 Public Transit", 0, 10, key="w_mobility", help="Subway, Bus, Transport Access")
 
 # ========================================
 # CALCULATE FINAL SCORE
 # ========================================
 
 # Filter by budget
-df_filtered = gdf[gdf['price_avg'] <= max_price].copy()
+df_filtered = gdf[gdf['price_avg'] <= st.session_state.max_price].copy()
 
 if len(df_filtered) == 0:
     st.error("❌ No hexagons found in this price range. Increase your budget!")
@@ -159,20 +260,20 @@ if len(df_filtered) == 0:
 
 # Calculate weighted final score
 df_filtered['final_score'] = (
-    (df_filtered['score_nightlife'] * w_nightlife) +
-    (df_filtered['score_culture'] * w_culture) +
-    (df_filtered['score_restaurants'] * w_restaurants) +
-    (df_filtered['score_green'] * w_green) +
-    (df_filtered['score_shopping'] * w_shopping) +
-    (df_filtered['score_safety'] * w_safety) +
-    (df_filtered['score_quiet'] * w_quiet) +
-    (df_filtered['score_clean'] * w_clean) +
-    (df_filtered['score_mobility'] * w_mobility)
+    (df_filtered['score_nightlife'] * st.session_state.w_nightlife) +
+    (df_filtered['score_culture'] * st.session_state.w_culture) +
+    (df_filtered['score_restaurants'] * st.session_state.w_restaurants) +
+    (df_filtered['score_green'] * st.session_state.w_green) +
+    (df_filtered['score_shopping'] * st.session_state.w_shopping) +
+    (df_filtered['score_safety'] * st.session_state.w_safety) +
+    (df_filtered['score_quiet'] * st.session_state.w_quiet) +
+    (df_filtered['score_clean'] * st.session_state.w_clean) +
+    (df_filtered['score_mobility'] * st.session_state.w_mobility)
 )
 
 # Normalize to 0-10 scale
-max_possible_score = (w_nightlife + w_culture + w_restaurants + w_green + w_shopping + 
-                      w_safety + w_quiet + w_clean + w_mobility)
+max_possible_score = (st.session_state.w_nightlife + st.session_state.w_culture + st.session_state.w_restaurants + st.session_state.w_green + st.session_state.w_shopping + 
+                      st.session_state.w_safety + st.session_state.w_quiet + st.session_state.w_clean + st.session_state.w_mobility)
 
 # EDGE CASE: All weights are 0 (user only cares about price)
 if max_possible_score == 0:
