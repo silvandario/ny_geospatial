@@ -226,6 +226,10 @@ if audio_component:
                 
                 updates = json.loads(content)
                 
+                # Store original voice input for AI Recommendations
+                st.session_state['user_specific_request'] = transcribed_text
+                st.session_state['audio_transcript'] = transcribed_text
+
                 # Update filters
                 updated_count = 0
                 for key, value in updates.items():
@@ -270,6 +274,9 @@ if st.sidebar.button("✨ Update Filters from Text"):
                     content = content.split("```")[1].split("```")[0]
                 
                 updates = json.loads(content)
+
+                # Store original text input for AI Recommendations  
+                st.session_state['user_specific_request'] = text_input
                 
                 updated_count = 0
                 for key, value in updates.items():
@@ -428,42 +435,59 @@ st.markdown("---")
 st.markdown("### 🤖 AI Recommendations")
 
 # Function to generate AI recommendations
-def generate_ai_recommendations(neighborhood_name, user_criteria, text_input=None, audio_input=None):
+def generate_ai_recommendations(neighborhood_name, user_criteria, winner_data, text_input=None, audio_input=None):
+    # 1. User Priorities
     high_priority_criteria = []
     for key, value in user_criteria.items():
         if value >= 7:
             criterion_name = key.replace('w_', '').replace('_', ' ').title()
             high_priority_criteria.append(f"{criterion_name} ({value}/10)")
     
-    criteria_text = ", ".join(high_priority_criteria) if high_priority_criteria else "No specific priorities set"
+    criteria_text = ", ".join(high_priority_criteria) if high_priority_criteria else "General recommendation"
     
-    prompt = f"""You are a NYC neighborhood expert. A visitor is interested in {neighborhood_name}, NYC.
-
-Their priorities are: {criteria_text}"""
+    # 2. Data Reality Check
+    safety_status = "Very Safe" if winner_data['score_safety'] > 0.7 else "Moderate Safety" if winner_data['score_safety'] > 0.4 else "High Crime Rate"
+    noise_status = "Quiet Area" if winner_data['score_quiet'] > 0.7 else "Moderate Noise" if winner_data['score_quiet'] > 0.4 else "Noisy / Party Area"
+    price_val = int(winner_data['price_avg'])
+    
+    # 3. Construct Prompt
+    prompt = f"""
+    You are a NYC local expert. A visitor is interested in **{neighborhood_name}**.
+    
+    **DATA REALITY CHECK (Based on our analysis):**
+    - Safety: {safety_status} (Score: {winner_data['score_safety']:.2f})
+    - Noise Level: {noise_status}
+    - Avg Price: ${price_val}/night
+    
+    **USER PRIORITIES:** {criteria_text}
+    """
     
     if text_input:
-        prompt += f"\n\nThey also mentioned: \"{text_input}\""
+        prompt += f"\n\n**USER SPECIFIC REQUEST:** \"{text_input}\""
     if audio_input:
-        prompt += f"\n\nFrom their voice input: \"{audio_input}\""
+        prompt += f"\n\n**USER VOICE INPUT:** \"{audio_input}\""
     
     prompt += """
-
-Provide 3 specific, actionable recommendations for activities, places to visit, or things to do in this neighborhood.
-
-Format as bullet points starting with •
-Focus on real places that exist in this neighborhood.
-Be specific and enthusiastic.
-Keep each recommendation to one concise line."""
+    
+    **TASK:**
+    Provide 3 specific, actionable recommendations for this neighborhood.
+    
+    **RULES:**
+    1. Tailor recommendations to user request (e.g. if they asked for Gyms, find Gyms).
+    2. If Data Reality Check shows negative flags, add polite warning.
+    3. Format as bullet points starting with •
+    4. Keep concise.
+    """
 
     try:
         response = openai.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a helpful NYC neighborhood guide providing specific local recommendations."},
+                {"role": "system", "content": "You are a helpful NYC neighborhood guide."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.8,
-            max_tokens=300
+            temperature=0.7,
+            max_tokens=350
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
@@ -475,16 +499,37 @@ for criterion in ['w_nightlife', 'w_culture', 'w_restaurants', 'w_green', 'w_sho
     user_criteria[criterion] = st.session_state.get(criterion, 0)
 
 # Check for optional inputs
-text_input_for_ai = text_input if text_input and text_input.strip() else None
-audio_input_for_ai = st.session_state.get('audio_transcript', None)
+text_input_for_ai = st.session_state.get('user_specific_request', None)
 
 # Generate & cache recommendations
 @st.cache_data(show_spinner=False)
-def cached_recommendations(neighborhood, criteria_str, text, audio):
-    return generate_ai_recommendations(neighborhood, json.loads(criteria_str), text, audio)
+def cached_recommendations(hex_id, neighborhood, criteria_str, winner_dict, text_input):
+    winner_data = pd.Series(winner_dict)  # Nimmt dict statt JSON
+    return generate_ai_recommendations(neighborhood, json.loads(criteria_str), winner_data, text_input=text_input)
+
+# Prepare winner data without geometry (causes recursion error)
+winner_dict = {
+    'h3_id': winner['h3_id'],
+    'price_avg': winner['price_avg'],
+    'score_safety': winner['score_safety'],
+    'score_quiet': winner['score_quiet'],
+    'score_clean': winner['score_clean'],
+    'score_nightlife': winner['score_nightlife'],
+    'score_culture': winner['score_culture'],
+    'score_restaurants': winner['score_restaurants'],
+    'score_green': winner['score_green'],
+    'score_mobility': winner['score_mobility'],
+    'score_shopping': winner['score_shopping']
+}
 
 with st.spinner("🤖 Generating personalized recommendations..."):
-    recommendations = cached_recommendations(neighborhood_name, json.dumps(user_criteria), text_input_for_ai, audio_input_for_ai)
+    recommendations = cached_recommendations(
+        winner['h3_id'], 
+        neighborhood_name, 
+        json.dumps(user_criteria), 
+        winner_dict,  
+        text_input_for_ai
+    )
 
 st.markdown(recommendations)
 st.markdown("---")
