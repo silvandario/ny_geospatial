@@ -604,24 +604,6 @@ folium.GeoJson(
 st_folium(m, width=2200, height=1200)
 
 # ========================================
-# STATISTICS
-# ========================================
-
-st.markdown("---")
-st.subheader("📊 Statistics")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric("Hexagons Displayed", len(df_filtered))
-
-with col2:
-    st.metric("Average Price", f"${df_filtered['price_avg'].mean():.0f}")
-
-with col3:
-    st.metric("Avg. Match Score", f"{df_filtered['final_score_normalized'].mean():.1f}/10")
-
-# ========================================
 # SIDEBAR LEGEND
 # ========================================
 
