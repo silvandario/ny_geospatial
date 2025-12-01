@@ -3,7 +3,7 @@ NYC Vibe & Value Finder - Streamlit Dashboard with Voice Agent
 ===============================================================
 Interactive dashboard with VAPI voice agent for finding perfect NYC neighborhoods.
 
-Author: Silvan Ladner
+Author: Feisal Abassy & Silvan Ladner
 Date: 2025-11-27
 """
 
