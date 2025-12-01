@@ -601,7 +601,7 @@ folium.GeoJson(
     tooltip=folium.Tooltip("<b>🏆 Top Match!</b>")
 ).add_to(m)
 
-st_folium(m, width=1400, height=600)
+st_folium(m, width=2200, height=1200)
 
 # ========================================
 # STATISTICS
